@@ -23,6 +23,13 @@ class AgronomistAgent:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] [{service.name}] {message}")
 
     def _load_data(self):
+        """
+        Učitava JSON bazu.
+        NAPOMENA: U produkcijskoj verziji (GenieAI), ovaj JSON bi se
+        automatski generirao iz PDF-ova koristeći 'Docling' parser
+        koji pretvara tablice iz PDF-a u Markdown/JSON strukture.
+        Mi ovdje koristimo ručno pripremljen JSON za demonstraciju.
+        """
         if not os.path.exists(self.kb_path): return []
         with open(self.kb_path, 'r', encoding='utf-8') as f: return json.load(f)
 
