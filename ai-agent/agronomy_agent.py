@@ -1,186 +1,151 @@
 import os
 import json
-import re  # Za obradu teksta
 from datetime import datetime
-
-# Pokušaj importa OpenAI biblioteke
 try:
     from openai import OpenAI
 except ImportError:
     print("MOLIM INSTALIRAJTE: pip install openai")
     exit(1)
 
-# --- KONFIGURACIJA (Kao u GenieAI configs) ---
-# Zamijeni ovo pravim API ključem ili postavi environment varijablu
-API_KEY = os.getenv("OPENAI_API_KEY", "sk-proj-TVOJ-API-KLJUC-OVDJE")
+# Uvozimo konstante iz druge datoteke
+from constants import ServiceType, ServiceRoleType
 
-# Postavke iz 'ChatCompletionRequest' definicije
+# --- KONFIGURACIJA ---
+API_KEY = os.getenv("OPENAI_API_KEY", "tvoj-api-kljuc-s-openai")
+
 CONF = {
-    "model": "gpt-3.5-turbo", # Ili gpt-4o
-    "temperature": 0.01,       # Jako nisko (kako je definirano u GenieAI protocolu)
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.01,
     "max_tokens": 1024,
-    "top_p": 0.95,
-    "frequency_penalty": 0.0,
-    "score_threshold": 0.1     # Minimalna relevantnost dokumenta
+    "score_threshold": 0.2
 }
 
-# Inicijalizacija klijenta
 client = OpenAI(api_key=API_KEY)
 
-# --- KLASA AGENTA ---
 class AgronomistAgent:
     def __init__(self, knowledge_base_path="hr_crops.json"):
         self.kb_path = knowledge_base_path
         self.knowledge_base = self._load_data()
-        self.chat_history = [] 
+        self.chat_history = []
+        self.role = ServiceRoleType.MEGASERVICE
         
-        # PROMPT Template preuzet iz 'genieai_chatqna.py' i preveden
+        # Inicijalizacija prompta (iz prijašnjih koraka)
         self.system_prompt_template = """
 ### Uloga:
-Ti si koristan, stručan i iskren agronoski asistent. Tvoj cilj je pomoći korisniku s pitanjima o poljoprivredi.
-Molim te, koristi priložene "Rezultate pretrage" (iz lokalne baze znanja DZS RH) da odgovoriš na pitanje.
-
-Pravila:
-1. Ako odgovor nije u rezultatima pretrage, iskoristi svoje opće znanje ali to JASNO NAGLASI.
-2. Nemoj izmišljati lažne informacije.
-3. Odgovor mora biti na hrvatskom jeziku.
+Ti si stručan agronomski asistent za hrvatsko podneblje.
+Koristi priložene "Rezultate pretrage" (iz lokalne baze DZS RH) kao primarni izvor istine.
 
 ### Rezultati pretrage (Kontekst): 
 {context}
 
-### Tvoj zadatak:
-Odgovori na zadnje pitanje korisnika na temelju gornjeg konteksta i povijesti razgovora.
+### Povijest:
+{history}
+
+### Pitanje:
+{question}
 """
 
-    def _load_data(self):
-        """Učitava JSON bazu (Simulacija ArangoDB-a)"""
-        if not os.path.exists(self.kb_path):
-            print(f"Upozorenje: Baza {self.kb_path} nije pronađena. Koristim praznu.")
-            return []
-        try:
-            with open(self.kb_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                print(f"[INFO] Učitano {len(data)} zapisa o kulturama.")
-                return data
-        except Exception as e:
-            print(f"[ERROR] Greška kod učitavanja JSON-a: {e}")
-            return []
+    def _log(self, service: ServiceType, message):
+        """Pomoćna funkcija za ispis u stilu mikroservisa"""
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] [{service.name}] {message}")
 
-    def _simple_retriever(self, query):
-        """
-        Pojednostavljeni 'Retriever' servis.
-        Traži ključne riječi iz Queryja u JSON bazi.
-        """
+    def _load_data(self):
+        if not os.path.exists(self.kb_path):
+            return []
+        with open(self.kb_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def _retriever_service(self, query):
+        """Simulira RETRIEVER mikroservis"""
+        self._log(ServiceType.RETRIEVER, f"Tražim podatke za: '{query}'")
+        
         hits = []
         query_terms = query.lower().split()
         
         for item in self.knowledge_base:
-            # Spoji sva polja u jedan tekst radi pretrage
             item_text = json.dumps(item, ensure_ascii=False).lower()
-            
-            # Bodovanje (Score)
             score = 0
+            
+            # Jednostavna logika bodovanja
             for term in query_terms:
                 if len(term) > 3 and term in item_text:
                     score += 0.2
-            
-            # Ako je naslov kulture direktno u pitanju, veliki bonus
             if item.get("kultura", "").lower() in query.lower():
                 score += 1.0
 
             if score >= CONF["score_threshold"]:
                 hits.append({"doc": item, "score": score})
         
-        # Sortiraj po relevantnosti (Simulacija 'Rerank' servisa)
-        hits.sort(key=lambda x: x["score"], reverse=True)
-        
-        # Vrati top 3 rezultata kao string
+        self._log(ServiceType.RETRIEVER, f"Pronađeno {len(hits)} relevantnih dokumenata.")
+        return hits
+
+    def _rerank_service(self, hits):
+        """Simulira RERANK mikroservis"""
         if not hits:
-            return "Nema relevantnih podataka u lokalnoj bazi."
-            
-        context_str = ""
-        for hit in hits[:3]:
-            doc = hit['doc']
-            context_str += f"- KULTURA: {doc.get('kultura')}\n"
-            context_str += f"  PREPORUKA REGIJE: {doc.get('regija_preporuka')}\n"
-            context_str += f"  STATISTIKA PRNOSA: {doc.get('dzs_statistika')}\n"
-            context_str += f"  UVJETI UZGOJA: {doc.get('uvjeti_uzgoja')}\n"
-            context_str += "---\n"
-            
-        return context_str
+            return []
+        
+        # Sortiranje po score-u
+        hits.sort(key=lambda x: x["score"], reverse=True)
+        top_hits = hits[:3] # Uzmi top 3
+        
+        self._log(ServiceType.RERANK, f"Odabrano top {len(top_hits)} rezultata.")
+        return [h['doc'] for h in top_hits]
 
-    def _format_history(self, max_chars=2000):
-        """
-        Simulira 'align_inputs' logiku za rezanje povijesti.
-        Ne šaljemo sve jer je skupo i nepotrebno.
-        """
-        history_str = ""
-        total_chars = 0
-        
-        # Idemo od zadnje poruke prema prvoj
-        for msg in reversed(self.chat_history):
-            msg_str = f"{msg['role']}: {msg['content']}\n"
-            if total_chars + len(msg_str) > max_chars:
-                break
-            history_str = msg_str + history_str
-            total_chars += len(msg_str)
-            
-        return history_str
-
-    def generate_response(self, user_question):
-        # 1. RETRIEVAL (Dohvati podatke)
-        context = self._simple_retriever(user_question)
-        
-        # 2. PROMPT CONSTRUCTION
-        system_msg = self.system_prompt_template.format(context=context)
-        history_str = self._format_history()
-        
-        full_msg_list = [
-            {"role": "system", "content": system_msg},
-            # Ovdje možemo ubaciti i sažetu povijest ako model podržava dugačak kontekst
-            # Za jednostavnost, samo dodajemo zadnji user query u API poziv dolje
-        ]
-        
-        # Dodaj povijest u messages listu
-        for msg in self.chat_history[-4:]: # Samo zadnja 2 kruga razgovora
-            full_msg_list.append(msg)
-            
-        full_msg_list.append({"role": "user", "content": user_question})
-
-        # 3. LLM CALL (OpenAI API koji oponaša GenieAI servis)
+    def _llm_service(self, prompt):
+        """Simulira LLM mikroservis"""
+        self._log(ServiceType.LLM, "Šaljem upit AI modelu...")
         try:
-            print(f"[AI] Razmišljam na temelju {len(context)} znakova konteksta...")
             response = client.chat.completions.create(
                 model=CONF["model"],
-                messages=full_msg_list,
-                temperature=CONF["temperature"],
-                max_tokens=CONF["max_tokens"],
-                frequency_penalty=CONF["frequency_penalty"]
+                messages=[{"role": "user", "content": prompt}], # Pojednostavljeno
+                temperature=CONF["temperature"]
             )
-            
-            answer = response.choices[0].message.content
-            
-            # Ažuriraj povijest
-            self.chat_history.append({"role": "user", "content": user_question})
-            self.chat_history.append({"role": "assistant", "content": answer})
-            
-            return answer
-
+            return response.choices[0].message.content
         except Exception as e:
-            return f"Greška u komunikaciji s AI servisom: {str(e)}"
+            return f"Greška: {e}"
 
-# --- DEMO NAČIN RADA ---
+    def process_request(self, user_question):
+        """
+        Orkestracija servisa (Kao MegaService u GenieAI)
+        Flow: Retriever -> Rerank -> LLM
+        """
+        # 1. RETRIEVE
+        raw_hits = self._retriever_service(user_question)
+        
+        # 2. RERANK
+        best_docs = self._rerank_service(raw_hits)
+        
+        # Formatiranje konteksta za LLM
+        context_str = ""
+        if not best_docs:
+            context_str = "Nema specifičnih podataka u bazi."
+        else:
+            for doc in best_docs:
+                context_str += f"- {json.dumps(doc, ensure_ascii=False)}\n"
+
+        # Formatiranje povijesti
+        history_str = "\n".join([f"{m['role']}: {m['content']}" for m in self.chat_history[-2:]])
+
+        # 3. LLM GENERATION
+        final_prompt = self.system_prompt_template.format(
+            context=context_str,
+            history=history_str,
+            question=user_question
+        )
+        
+        answer = self._llm_service(final_prompt)
+        
+        # Update history
+        self.chat_history.append({"role": "user", "content": user_question})
+        self.chat_history.append({"role": "assistant", "content": answer})
+        
+        return answer
+
 if __name__ == "__main__":
-    # Testiranje
     agent = AgronomistAgent()
-    
-    print("\n=== GENIE.AI AGRONOMIST AGENT (Lokalna Verzija) ===")
-    print("Upišite 'q' za izlaz.\n")
+    print("--- GENIE.AI AGRONOM COPY STARTED ---")
     
     while True:
-        pitanje = input("TI: ")
-        if pitanje.lower() in ['q', 'exit']:
-            break
-            
-        odgovor = agent.generate_response(pitanje)
-        print(f"AGENT: {odgovor}\n")
+        q = input("\nPitanje (q za kraj): ")
+        if q == 'q': break
+        print(f"\nODGOVOR: {agent.process_request(q)}")
