@@ -8,7 +8,15 @@ except ImportError:
     exit(1)
 
 # Uvozimo konstante iz druge datoteke
-from constants import ServiceType, ServiceRoleType
+from constants import (
+    ServiceType, 
+    ServiceRoleType, 
+    OPENAI_CHAT_MODEL, 
+    OPENAI_CHAT_TEMPERATURE,
+    RETRIEVER_SCORE_THRESHOLD, 
+    RETRIEVER_MAX_RETURNED,
+    SYSTEM_PROMPT_TEMPLATE
+)
 
 # --- KONFIGURACIJA ---
 API_KEY = os.getenv("OPENAI_API_KEY", "tvoj-api-kljuc-s-openai")
