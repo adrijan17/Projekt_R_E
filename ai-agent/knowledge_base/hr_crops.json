@@ -1,30 +1,23 @@
 [
   {
     "kultura": "Vinova loza",
+    "kategorija": "Voće",
     "regija_preporuka": ["Dalmacija", "Istra", "Slavonija - brdski dijelovi"],
-    "dzs_statistika": {
-      "prosjecan_prinos_po_ha": "7.5 tona",
-      "trend_proizvodnje": "stabilan"
-    },
-    "uvjeti_uzgoja": {
-      "tlo": "ocjedita, vapnenačka tla",
-      "min_temp_klijanja": 10,
-      "rizici": ["mraz u travnju", "plamenjača pri visokoj vlazi"]
-    },
-    "strategija_rh": "Poticaji za ekološku proizvodnju i autohtone sorte."
+    "dzs_statistika": { "prinos": "7.5 t/ha" },
+    "uvjeti_uzgoja": "Ocjedita tla, osjetljiva na mraz."
   },
   {
     "kultura": "Pšenica",
+    "kategorija": "Žitarice",
     "regija_preporuka": ["Slavonija", "Baranja"],
-    "dzs_statistika": {
-      "prosjecan_prinos_po_ha": "5.5 tona",
-      "trend_proizvodnje": "rastući"
-    },
-    "uvjeti_uzgoja": {
-      "tlo": "crnica, duboka tla",
-      "min_temp_klijanja": 3,
-      "rizici": ["suša u vrijeme nalijevanja zrna"]
-    },
-    "strategija_rh": "Strateška kultura za prehrambenu sigurnost."
+    "dzs_statistika": { "prinos": "5.5 t/ha" },
+    "uvjeti_uzgoja": "Duboka tla, crnica."
+  },
+  {
+    "kultura": "Maslina",
+    "kategorija": "Voće",
+    "regija_preporuka": ["Dalmacija", "Istra"],
+    "dzs_statistika": { "prinos": "3.0 t/ha" },
+    "uvjeti_uzgoja": "Kamenito tlo, puno sunca."
   }
 ]
