@@ -15,7 +15,7 @@ except ImportError:
     exit(1)
 
 class AgronomistAgent:
-    def __init__(self, knowledge_base_path="hr_crops.json"):
+    def __init__(self, knowledge_base_path="usjevi.json"):
         self.kb_path = knowledge_base_path
         self.knowledge_base = self._load_data()
         self.chat_history = []
