@@ -22,7 +22,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Unos korisnika
+# Za unos korisnika
 if prompt := st.chat_input("Pitajte o kukuruzu, pšenici, lozi..."):
     with st.chat_message("user"):
         st.markdown(prompt)
