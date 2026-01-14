@@ -33,7 +33,6 @@ class AgronomistAgent:
         if not os.path.exists(self.kb_path): return []
         with open(self.kb_path, 'r', encoding='utf-8') as f: return json.load(f)
 
-    # --- SIMULACIJA ARANGO FILTRIRANJA (Inspirirano linijama 700-730 tvoje datoteke) ---
     def _apply_filters(self, items, category_filter=None):
         if not category_filter:
             return items
@@ -45,14 +44,14 @@ class AgronomistAgent:
     def _retriever_service(self, query, category_filter=None):
         self._log(ServiceType.RETRIEVER, f"Graph Traversal Start: '{query}'")
         
-        # 1. Prvo filtriraj (Simulacija AQL FILTER klauzule)
+        # 1. Prvo filtriranje
         candidates = self._apply_filters(self.knowledge_base, category_filter)
         
         hits = []
         query_terms = query.lower().split()
         
         for item in candidates:
-            # 2. Vektorska sličnost (Simulirano preko ključnih riječi)
+            # 2. Vektorska sličnost
             item_text = json.dumps(item, ensure_ascii=False).lower()
             score = 0
             
@@ -60,26 +59,25 @@ class AgronomistAgent:
                 if len(term) > 3 and term in item_text:
                     score += 0.2
             if item.get("kultura", "").lower() in query.lower():
-                score += 1.0 # Jaki signal (Exact match)
+                score += 1.0   # Jaka povezanost
 
-            # Simulacija 'fetch_neighborhoods' - dohvaćamo sve ako je score visok
+            # Dohvaćamo sve ako je score visok
             if score >= RETRIEVER_SCORE_THRESHOLD:
                 hits.append({"doc": item, "score": score})
         
         return hits
 
     def process_request(self, user_question):
-        # DETEKCIJA NAMJERE (Jednostavna logika)
         cat_filter = None
         if "voće" in user_question.lower() or "voćk" in user_question.lower():
             cat_filter = "Voće"
         elif "žit" in user_question.lower():
             cat_filter = "Žitarice"
 
-        # 1. RETRIEVE
+        # 1. Retrieve
         raw_hits = self._retriever_service(user_question, category_filter=cat_filter)
         
-        # 2. RERANK
+        # 2. Rerank
         raw_hits.sort(key=lambda x: x["score"], reverse=True)
         best_docs = [h['doc'] for h in raw_hits[:RETRIEVER_MAX_RETURNED]]
         
@@ -88,12 +86,11 @@ class AgronomistAgent:
         for doc in best_docs:
             context_str += f"- KULTURA: {doc.get('kultura')} ({doc.get('kategorija')})\n"
             context_str += f"  UVJETI: {doc.get('uvjeti_uzgoja')}\n"
-            # Ovdje bi GraphRAG dodao "RELATED INFORMATION"
             context_str += "---\n"
 
         history_str = "\n".join([f"{m['role']}: {m['content']}" for m in self.chat_history[-2:]])
 
-        # 3. LLM GENERATION
+        # 3. LLM generiranje
         final_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             context=context_str if context_str else "Nema podataka.",
             history=history_str,
