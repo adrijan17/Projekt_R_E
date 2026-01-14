@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import json
 from datetime import datetime
 
@@ -53,37 +55,45 @@ class AgronomistAgent:
             return "; ".join(lines)
         return str(stats)
 
+    
     def _retriever_service(self, query, category_filter=None):
-        """Glavna logika pretrage"""
-        self._log(ServiceType.RETRIEVER, f"Tražim: '{query}'")
+        """Naprednija logika pretrage otporna na gramatiku"""
+        self._log(ServiceType.RETRIEVER, f"Tražim: '{query}' (Filter: {category_filter})")
         
-        # Filtriranje
+        # Prvo filtriram po kategoriji
         candidates = self._apply_filters(self.knowledge_base, category_filter)
         
         hits = []
         query_terms = query.lower().split()
         
         for item in candidates:
-            # Simulirana vektorska sličnost
-            # Pretvaranje cijelog item-a u tekst da možemo tražiti ključne riječi
             item_text = json.dumps(item, ensure_ascii=False).lower()
             score = 0
             
-            for term in query_terms:
-                if len(term) > 3 and term in item_text:
-                    score += 0.2
+            # Ako odgovara kategoriji, daj mu male početne bodove
+            if category_filter:
+                score = 1.0 
             
-            # Ako se ime kulture spominje u pitanju
+            for term in query_terms:
+                if len(term) < 3: continue    # Da preskoči "i", "u", "je"
+                
+                # Uzimam samo prva 4 slova riječi
+                root = term[:4]
+                
+                if root in item_text:
+                    score += 0.5
+            
+            # Dodatni bodovi za točno ime kulture
             if item.get("kultura", "").lower() in query.lower():
                 score += 2.0 
 
-            if score >= RETRIEVER_SCORE_THRESHOLD:
+            if score >= 0.5:
                 hits.append({"doc": item, "score": score})
         
         return hits
 
+
     def process_request(self, user_question):
-        # Detekcija kategorije
         cat_filter = None
         q_lower = user_question.lower()
         if any(x in q_lower for x in ["voće", "voćk", "jabuk", "krušk", "maslin", "grožđ", "mandarin"]):
