@@ -1,5 +1,5 @@
 import streamlit as st
-from agronomy_agent import AgronomistAgent
+from ai_agent import AgronomistAgent
 
 st.set_page_config(page_title="AgroGenie AI", page_icon="🌱", layout="centered")
 
