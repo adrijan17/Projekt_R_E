@@ -5,7 +5,7 @@ st.set_page_config(page_title="AgroGenie AI", page_icon="🌱", layout="centered
 
 st.title("🌱 AgroGenie: Pametni Agronom")
 st.markdown("""
-Ovaj AI agent koristi službene podatke DZS-a kako bi vam dao precizne savjete o uzgoju kultura u Hrvatskoj.
+Ovaj AI agent koristi službene podatke DZS-a kako bi Vam dao precizne savjete o uzgoju kultura u Hrvatskoj.
 """)
 
 # Inicijalizacija agenta
